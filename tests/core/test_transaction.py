@@ -112,7 +112,7 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction._endpoints = []
 
         config = {
-            "endpoints": {"https://foo.bar.com": "foo"},
+            "endpoints": {"https://foo.bar.com": ["foo"]},
             "dd_url": "https://foo.bar.com",
             "api_key": "foo",
             "use_dd": True
@@ -130,7 +130,6 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction.set_endpoints(config['endpoints'])
 
         transaction = MetricTransaction(None, {}, "msgtype")
-        transaction = MetricTransaction(None, {}, "")
         endpoints = []
         for endpoint in transaction._endpoints:
             for api_key in transaction._endpoints[endpoint]:
@@ -146,7 +145,7 @@ class TestTransaction(unittest.TestCase):
         MetricTransaction._endpoints = []
         api_key = "a" * 32
         config = {
-            "endpoints": {"https://app.datadoghq.com": api_key},
+            "endpoints": {"https://app.datadoghq.com": [api_key]},
             "dd_url": "https://app.datadoghq.com",
             "api_key": api_key,
             "use_dd": True
@@ -179,7 +178,10 @@ class TestTransaction(unittest.TestCase):
 
         # API Metric Transaction
         transaction = APIMetricTransaction(None, {})
-        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        endpoints = []
+        for endpoint in transaction._endpoints:
+            for api_key in transaction._endpoints[endpoint]:
+                endpoints.append(transaction.get_url(endpoint, api_key))
         expected = ['https://{0}-app.agent.datadoghq.com/api/v1/series/?api_key={1}'.format(
             get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))
@@ -195,7 +197,10 @@ class TestTransaction(unittest.TestCase):
         APIServiceCheckTransaction.set_endpoints(config['endpoints'])
 
         transaction = APIServiceCheckTransaction(None, {})
-        endpoints = [transaction.get_url(e) for e in transaction._endpoints]
+        endpoints = []
+        for endpoint in transaction._endpoints:
+            for api_key in transaction._endpoints[endpoint]:
+                endpoints.append(transaction.get_url(endpoint, api_key))
         expected = ['https://{0}-app.agent.datadoghq.com/api/v1/check_run/?api_key={1}'.format(
             get_version().replace(".", "-"), api_key)]
         self.assertEqual(endpoints, expected, (endpoints, expected))

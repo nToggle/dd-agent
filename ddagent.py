@@ -185,18 +185,18 @@ class AgentTransaction(Transaction):
         Transaction.__init__(self)
 
         # Emitters operate outside the regular transaction framework
-        if AgentTransaction._emitter_manager is not None:
-            AgentTransaction._emitter_manager.send(data, headers)
+        if self._emitter_manager is not None:
+            self._emitter_manager.send(data, headers)
 
         # Insert the transaction(s) in the Manager
-        for endpoint in AgentTransaction._endpoints:
-            for api_key in AgentTransaction._endpoints[endpoint]:
+        for endpoint in self._endpoints:
+            for api_key in self._endpoints[endpoint]:
                 transaction = copy.copy(self)
                 transaction._endpoint = endpoint
                 transaction._api_key = api_key
-                AgentTransaction._trManager.append(transaction)
+                self._trManager.append(transaction)
                 log.debug("Created transaction %d" % transaction.get_id())
-        AgentTransaction._trManager.flush()
+        self._trManager.flush()
 
     def __sizeof__(self):
         return sys.getsizeof(self._data)
