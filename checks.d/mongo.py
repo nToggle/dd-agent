@@ -599,6 +599,8 @@ class MongoDb(AgentCheck):
             "db:%s" % db_name
         ]
 
+        service_check_tags.extend(tags)
+
         nodelist = parsed.get('nodelist')
         if nodelist:
             host = nodelist[0][0]
