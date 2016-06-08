@@ -161,7 +161,7 @@ class Check(object):
             raise CheckException("Saving a sample for an undefined metric: %s" % metric)
         try:
             value = cast_metric_val(value)
-        except ValueError, ve:
+        except ValueError as ve:
             raise NaN(ve)
 
         # Sort and validate tags
@@ -206,7 +206,7 @@ class Check(object):
             raise
         except UnknownValue:
             raise
-        except Exception, e:
+        except Exception as e:
             raise NaN(e)
 
     def get_sample_with_timestamp(self, metric, tags=None, device_name=None, expire=True):
@@ -763,7 +763,7 @@ class AgentCheck(object):
                         i, check_status.STATUS_OK,
                         instance_check_stats=instance_check_stats
                     )
-            except Exception, e:
+            except Exception as e:
                 self.log.exception("Check '%s' instance #%s failed" % (self.name, i))
                 instance_status = check_status.InstanceStatus(
                     i, check_status.STATUS_ERROR,

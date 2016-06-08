@@ -57,7 +57,7 @@ def configcheck():
         basename = os.path.basename(conf_path)
         try:
             check_yaml(conf_path)
-        except Exception, e:
+        except Exception as e:
             all_valid = False
             print "%s contains errors:\n    %s" % (basename, e)
         else:
@@ -533,7 +533,7 @@ class Flare(object):
     def _print_output_command(self, command):
         try:
             status = subprocess.check_output(command, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             status = 'Not able to get output, exit number {0}, exit output:\n'\
                      '{1}'.format(str(e.returncode), e.output)
         print status
@@ -548,7 +548,7 @@ class Flare(object):
     def _jmx_command_call(self, command):
         try:
             jmx_command([command], self._config, redirect_std_streams=True)
-        except Exception, e:
+        except Exception as e:
             print "Unable to call jmx command {0}: {1}".format(command, e)
 
     # Print java version

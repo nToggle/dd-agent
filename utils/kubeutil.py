@@ -106,7 +106,7 @@ class KubeUtil():
                     fields = line.strip().split()
                     if fields[1] == '00000000':
                         return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
-        except IOError, e:
+        except IOError as e:
             log.error('Unable to open /proc/net/route: %s', e)
 
         return None

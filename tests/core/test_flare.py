@@ -171,7 +171,7 @@ class FlareTest(unittest.TestCase):
         try:
             f.upload()
             raise Exception('Should fail before')
-        except Exception, e:
+        except Exception as e:
             self.assertEqual(str(e), "Your request is incorrect: Invalid inputs: 'API key unknown'")
 
     @attr(requires='core_integration')
