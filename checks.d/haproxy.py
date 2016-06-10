@@ -334,10 +334,11 @@ class HAProxy(AgentCheck):
                 count, status, tags, counter
             )
 
+            service_key = service if count_status_by_service else 'default_service'
             if 'up' in status or 'open' in status:
-                agg_statuses[service]['available'] += count
+                agg_statuses[service_key]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
-                agg_statuses[service]['unavailable'] += count
+                agg_statuses[service_key]['unavailable'] += count
 
         if counter is not None:
             # send aggregated counts as gauges
@@ -345,8 +346,8 @@ class HAProxy(AgentCheck):
                 metric_name, tags = key[0], key[1]
                 self.gauge(metric_name, count, tags=tags)
 
-        for service in agg_statuses:
-            for status, count in agg_statuses[service].iteritems():
+        for service, service_agg_statuses in agg_statuses.iteritems():
+            for status, count in service_agg_statuses.iteritems():
                 tags = ['status:%s' % status]
                 if count_status_by_service:
                     tags.append('service:%s' % service)
