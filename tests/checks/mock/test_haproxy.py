@@ -34,7 +34,7 @@ class TestCheckHAProxy(AgentCheckTest):
 
     # aggregation of metrics in process_status_metrics
     @mock.patch('requests.get', return_value=MockResponse())
-    def test_count_per_status(self, mock_requests):
+    def test_count_per_status_only_agg(self, mock_requests):
         # with count_status_by_service set to False
         self.run_check({
             'init_config': None,
@@ -47,5 +47,65 @@ class TestCheckHAProxy(AgentCheckTest):
             ]
         })
 
+        self.assertMetric('haproxy.count_per_status', value=2, tags=['status:open'])
+        self.assertMetric('haproxy.count_per_status', value=4, tags=['status:up'])
+        self.assertMetric('haproxy.count_per_status', value=2, tags=['status:down'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:maint'])
+        self.assertMetric('haproxy.count_per_status', value=0, tags=['status:nolb'])
+
         self.assertMetric('haproxy.count_per_status', value=6, tags=['status:available'])
         self.assertMetric('haproxy.count_per_status', value=3, tags=['status:unavailable'])
+
+    @mock.patch('requests.get', return_value=MockResponse())
+    def test_count_per_status_by_service(self, mock_requests):
+        self.run_check({
+            'init_config': None,
+            'instances': [
+                {
+                    'url': 'http://localhost/admin?stats',
+                    'collect_status_metrics': True
+                }
+            ]
+        })
+
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:open', 'service:a'])
+        self.assertMetric('haproxy.count_per_status', value=3, tags=['status:up', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:open', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:down', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:maint', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:up', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:down', 'service:c'])
+
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:available', 'service:a'])
+        self.assertMetric('haproxy.count_per_status', value=4, tags=['status:available', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=2, tags=['status:unavailable', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:available', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:unavailable', 'service:c'])
+
+    @mock.patch('requests.get', return_value=MockResponse())
+    def test_count_per_status_by_service_and_host(self, mock_requests):
+        self.run_check({
+            'init_config': None,
+            'instances': [
+                {
+                    'url': 'http://localhost/admin?stats',
+                    'collect_status_metrics': True,
+                    'collect_status_metrics_by_host': True
+                }
+            ]
+        })
+
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:FRONTEND', 'status:open', 'service:a'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:FRONTEND', 'status:open', 'service:b'])
+        for backend in ['i-1', 'i-2', 'i-3']:
+            self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:%s' % backend, 'status:up', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-4', 'status:down', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-5', 'status:maint', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-1', 'status:up', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['backend:i-2', 'status:down', 'service:c'])
+
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:available', 'service:a'])
+        self.assertMetric('haproxy.count_per_status', value=4, tags=['status:available', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=2, tags=['status:unavailable', 'service:b'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:available', 'service:c'])
+        self.assertMetric('haproxy.count_per_status', value=1, tags=['status:unavailable', 'service:c'])

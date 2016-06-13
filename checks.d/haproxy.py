@@ -305,12 +305,7 @@ class HAProxy(AgentCheck):
                                services_incl_filter=None, services_excl_filter=None,
                                count_status_by_service=True):
         agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
-
-        # use a counter unless we have a unique tag set to gauge
-        counter = defaultdict(int)
-        if count_status_by_service and collect_status_metrics_by_host:
-            # `service` and `backend` tags will exist
-            counter = None
+        counter = defaultdict(lambda: {status: 0 for status in Services.ALL_STATUSES})
 
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -319,33 +314,30 @@ class HAProxy(AgentCheck):
                 service, status = host_status
             status = status.lower()
 
-            tags = []
-            if count_status_by_service:
-                tags.append('service:%s' % service)
-
             if self._is_service_excl_filtered(service, services_incl_filter, services_excl_filter):
                 continue
 
+            tags = []
+            if count_status_by_service:
+                tags.append('service:%s' % service)
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
 
-            self._gauge_all_statuses(
-                "haproxy.count_per_status",
-                count, status, tags, counter
-            )
+            counter[tuple(tags)][status] += count
 
+            # Compute aggregates
             service_key = service if count_status_by_service else 'default_service'
             if 'up' in status or 'open' in status:
                 agg_statuses[service_key]['available'] += count
             if 'down' in status or 'maint' in status or 'nolb' in status:
                 agg_statuses[service_key]['unavailable'] += count
 
-        if counter is not None:
-            # send aggregated counts as gauges
-            for key, count in counter.iteritems():
-                metric_name, tags = key[0], key[1]
-                self.gauge(metric_name, count, tags=tags)
+        for key, count_per_status in counter.iteritems():
+            key_tags = list(key)
+            for status, count in count_per_status.iteritems():
+                self.gauge('haproxy.count_per_status', count, tags=key_tags + ['status:%s' % status])
 
+        # Send aggregates
         for service, service_agg_statuses in agg_statuses.iteritems():
             for status, count in service_agg_statuses.iteritems():
                 tags = ['status:%s' % status]
@@ -353,18 +345,6 @@ class HAProxy(AgentCheck):
                     tags.append('service:%s' % service)
 
                 self.gauge("haproxy.count_per_status", count, tags=tags)
-
-    def _gauge_all_statuses(self, metric_name, count, status, tags, counter):
-        if counter is not None:
-            counter_key = tuple([metric_name, tuple(tags + ['status:%s' % status])])
-            counter[counter_key] += count
-        else:
-            # assume we have enough context, just send a gauge
-            self.gauge(metric_name, count, tags + ['status:%s' % status])
-
-        for state in Services.ALL_STATUSES:
-            if state != status:
-                self.gauge(metric_name, 0, tags + ['status:%s' % state.replace(" ", "_")])
 
     def _process_metrics(self, data, url, services_incl_filter=None,
                          services_excl_filter=None):
