@@ -26,6 +26,17 @@ class Services(object):
     ALL_STATUSES = (
         'up', 'open', 'down', 'maint', 'nolb'
     )
+    AVAILABLE = 'available'
+    UNAVAILABLE = 'unavailable'
+    COLLATED_STATUSES = (AVAILABLE, UNAVAILABLE)
+
+    STATUS_MAP = {
+        'up': AVAILABLE,
+        'open': AVAILABLE,
+        'down': UNAVAILABLE,
+        'maint': UNAVAILABLE,
+        'nolb': UNAVAILABLE
+    }
 
     STATUSES_TO_SERVICE_CHECK = {
         'UP': AgentCheck.OK,
@@ -87,6 +98,10 @@ class HAProxy(AgentCheck):
             instance.get('collect_status_metrics_by_host', False)
         )
 
+        collate_status_tags_per_host = _is_affirmative(
+            instance.get('collate_status_tags_per_host', False)
+        )
+
         count_status_by_service = _is_affirmative(
             instance.get('count_status_by_service', True)
         )
@@ -113,6 +128,7 @@ class HAProxy(AgentCheck):
             tag_service_check_by_host=tag_service_check_by_host,
             services_incl_filter=services_incl_filter,
             services_excl_filter=services_excl_filter,
+            collate_status_tags_per_host=collate_status_tags_per_host,
             count_status_by_service=count_status_by_service,
         )
 
@@ -133,7 +149,8 @@ class HAProxy(AgentCheck):
     def _process_data(self, data, collect_aggregates_only, process_events, url=None,
                       collect_status_metrics=False, collect_status_metrics_by_host=False,
                       tag_service_check_by_host=False, services_incl_filter=None,
-                      services_excl_filter=None, count_status_by_service=True):
+                      services_excl_filter=None, collate_status_tags_per_host=False,
+                      count_status_by_service=True):
         ''' Main data-processing loop. For each piece of useful data, we'll
         either save a metric, save an event or both. '''
 
@@ -190,6 +207,7 @@ class HAProxy(AgentCheck):
                 self.hosts_statuses, collect_status_metrics_by_host,
                 services_incl_filter=services_incl_filter,
                 services_excl_filter=services_excl_filter,
+                collate_status_tags_per_host=collate_status_tags_per_host,
                 count_status_by_service=count_status_by_service
             )
 
@@ -303,9 +321,13 @@ class HAProxy(AgentCheck):
 
     def _process_status_metric(self, hosts_statuses, collect_status_metrics_by_host,
                                services_incl_filter=None, services_excl_filter=None,
-                               count_status_by_service=True):
-        agg_statuses = defaultdict(lambda: {'available': 0, 'unavailable': 0})
-        counter = defaultdict(lambda: {status: 0 for status in Services.ALL_STATUSES})
+                               collate_status_tags_per_host=False, count_status_by_service=True):
+        agg_statuses_counter = defaultdict(lambda: {status: 0 for status in Services.COLLATED_STATUSES})
+
+        reported_statuses = Services.ALL_STATUSES
+        if collate_status_tags_per_host:
+            reported_statuses = Services.COLLATED_STATUSES
+        counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
 
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -323,14 +345,17 @@ class HAProxy(AgentCheck):
             if collect_status_metrics_by_host:
                 tags.append('backend:%s' % hostname)
 
-            counter[tuple(tags)][status] += count
+            counter_status = status
+            if collate_status_tags_per_host:
+                counter_status = Services.STATUS_MAP.get(status, status)
+
+            counter[tuple(tags)][counter_status] += count
 
             # Compute aggregates
-            service_key = service if count_status_by_service else 'default_service'
-            if 'up' in status or 'open' in status:
-                agg_statuses[service_key]['available'] += count
-            if 'down' in status or 'maint' in status or 'nolb' in status:
-                agg_statuses[service_key]['unavailable'] += count
+            agg_tags = []
+            if count_status_by_service:
+                agg_tags.append('service:%s' % service)
+            agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, status)] += count
 
         for key, count_per_status in counter.iteritems():
             key_tags = list(key)
@@ -338,13 +363,10 @@ class HAProxy(AgentCheck):
                 self.gauge('haproxy.count_per_status', count, tags=key_tags + ['status:%s' % status])
 
         # Send aggregates
-        for service, service_agg_statuses in agg_statuses.iteritems():
+        for service, service_agg_statuses in agg_statuses_counter.iteritems():
+            service_tags = list(service)
             for status, count in service_agg_statuses.iteritems():
-                tags = ['status:%s' % status]
-                if count_status_by_service:
-                    tags.append('service:%s' % service)
-
-                self.gauge("haproxy.count_per_status", count, tags=tags)
+                self.gauge("haproxy.count_per_status", count, tags=service_tags + ['status:%s' % status])
 
     def _process_metrics(self, data, url, services_incl_filter=None,
                          services_excl_filter=None):
