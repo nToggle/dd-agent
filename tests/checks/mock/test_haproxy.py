@@ -23,14 +23,6 @@ c,BACKEND,0,0,1,2,0,421,1,0,0,0,,0,0,0,0,UP,6,6,0,,0,1,0,,1,3,0,,421,,1,0,,1,,,,
 """
 
 
-class MockResponse(object):
-    def __init__(self):
-        self.content = MOCK_DATA
-
-    def raise_for_status(self):
-        pass
-
-
 class TestCheckHAProxy(AgentCheckTest):
     CHECK_NAME = 'haproxy'
 
@@ -55,7 +47,7 @@ class TestCheckHAProxy(AgentCheckTest):
             self.assertMetric('haproxy.count_per_status', value=6, tags=['status:available'])
             self.assertMetric('haproxy.count_per_status', value=3, tags=['status:unavailable'])
 
-    @mock.patch('requests.get', return_value=MockResponse())
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_per_status_agg_only(self, mock_requests):
         config = copy.deepcopy(self.BASE_CONFIG)
         # with count_status_by_service set to False
@@ -70,7 +62,7 @@ class TestCheckHAProxy(AgentCheckTest):
 
         self._assert_agg_statuses(False)
 
-    @mock.patch('requests.get', return_value=MockResponse())
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_per_status_by_service(self, mock_requests):
         self.run_check(self.BASE_CONFIG)
 
@@ -84,7 +76,7 @@ class TestCheckHAProxy(AgentCheckTest):
 
         self._assert_agg_statuses(True)
 
-    @mock.patch('requests.get', return_value=MockResponse())
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_per_status_by_service_and_host(self, mock_requests):
         config = copy.deepcopy(self.BASE_CONFIG)
         config['instances'][0]['collect_status_metrics_by_host'] = True
@@ -101,7 +93,7 @@ class TestCheckHAProxy(AgentCheckTest):
 
         self._assert_agg_statuses(True)
 
-    @mock.patch('requests.get', return_value=MockResponse())
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_per_status_by_service_and_collate_per_host(self, mock_requests):
         config = copy.deepcopy(self.BASE_CONFIG)
         config['instances'][0]['collect_status_metrics_by_host'] = True
@@ -119,7 +111,7 @@ class TestCheckHAProxy(AgentCheckTest):
 
         self._assert_agg_statuses(True)
 
-    @mock.patch('requests.get', return_value=MockResponse())
+    @mock.patch('requests.get', return_value=mock.Mock(content=MOCK_DATA))
     def test_count_per_status_collate_per_host(self, mock_requests):
         config = copy.deepcopy(self.BASE_CONFIG)
         config['instances'][0]['collect_status_metrics_by_host'] = True
