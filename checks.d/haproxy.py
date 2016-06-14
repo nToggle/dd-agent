@@ -357,16 +357,14 @@ class HAProxy(AgentCheck):
                 agg_tags.append('service:%s' % service)
             agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, status)] += count
 
-        for key, count_per_status in counter.iteritems():
-            key_tags = list(key)
+        for tags, count_per_status in counter.iteritems():
             for status, count in count_per_status.iteritems():
-                self.gauge('haproxy.count_per_status', count, tags=key_tags + ['status:%s' % status])
+                self.gauge('haproxy.count_per_status', count, tags=tags + ('status:%s' % status, ))
 
         # Send aggregates
-        for service, service_agg_statuses in agg_statuses_counter.iteritems():
-            service_tags = list(service)
+        for service_tags, service_agg_statuses in agg_statuses_counter.iteritems():
             for status, count in service_agg_statuses.iteritems():
-                self.gauge("haproxy.count_per_status", count, tags=service_tags + ['status:%s' % status])
+                self.gauge("haproxy.count_per_status", count, tags=service_tags + ('status:%s' % status, ))
 
     def _process_metrics(self, data, url, services_incl_filter=None,
                          services_excl_filter=None):
