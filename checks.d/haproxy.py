@@ -327,7 +327,7 @@ class HAProxy(AgentCheck):
         reported_statuses = Services.ALL_STATUSES
         if collate_status_tags_per_host:
             reported_statuses = Services.COLLATED_STATUSES
-        counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
+        statuses_counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
 
         for host_status, count in hosts_statuses.iteritems():
             try:
@@ -349,7 +349,7 @@ class HAProxy(AgentCheck):
             if collate_status_tags_per_host:
                 counter_status = Services.STATUS_MAP.get(status, status)
 
-            counter[tuple(tags)][counter_status] += count
+            statuses_counter[tuple(tags)][counter_status] += count
 
             # Compute aggregates
             agg_tags = []
@@ -357,7 +357,7 @@ class HAProxy(AgentCheck):
                 agg_tags.append('service:%s' % service)
             agg_statuses_counter[tuple(agg_tags)][Services.STATUS_MAP.get(status, status)] += count
 
-        for tags, count_per_status in counter.iteritems():
+        for tags, count_per_status in statuses_counter.iteritems():
             for status, count in count_per_status.iteritems():
                 self.gauge('haproxy.count_per_status', count, tags=tags + ('status:%s' % status, ))
 
