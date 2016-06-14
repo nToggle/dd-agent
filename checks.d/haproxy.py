@@ -330,9 +330,13 @@ class HAProxy(AgentCheck):
         statuses_counter = defaultdict(lambda: {status: 0 for status in reported_statuses})
 
         for host_status, count in hosts_statuses.iteritems():
+            hostname = None
             try:
                 service, hostname, status = host_status
             except Exception:
+                if collect_status_metrics_by_host:
+                    self.warning('`collect_status_metrics_by_host` is enabled but no host info\
+                                 could be extracted from HAProxy stats endpoint for {0}'.format(service))
                 service, status = host_status
             status = status.lower()
 
@@ -342,7 +346,7 @@ class HAProxy(AgentCheck):
             tags = []
             if count_status_by_service:
                 tags.append('service:%s' % service)
-            if collect_status_metrics_by_host:
+            if hostname:
                 tags.append('backend:%s' % hostname)
 
             counter_status = status
